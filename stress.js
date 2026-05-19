@@ -1,75 +1,75 @@
 const mineflayer = require('mineflayer')
+const readline = require('readline')
 
-const HOST = 'nova.pikamc.vn'
-const PORT = 25010
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+})
 
-const BOT_COUNT = 10
-const JOIN_DELAY = 3000
-
-const messages = [
-  'hello',
-  'hi',
-  'test',
-  'nice server',
-  'lag?',
-  'gg',
-  'wow'
-]
+function ask(q) {
+  return new Promise(res => rl.question(q, ans => res(ans)))
+}
 
 function randomName() {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  let name = ''
+  let n = ''
   const len = 6 + Math.floor(Math.random() * 5)
   for (let i = 0; i < len; i++) {
-    name += chars[Math.floor(Math.random() * chars.length)]
+    n += chars[Math.floor(Math.random() * chars.length)]
   }
-  return name
+  return n
 }
 
 function rand(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-function createBot(i) {
-  const bot = mineflayer.createBot({
-    host: HOST,
-    port: PORT,
-    username: randomName()
-  })
+async function start() {
+  const host = await ask('IP server: ')
+  const port = parseInt(await ask('Port: '))
+  const count = parseInt(await ask('Số player: '))
 
-  bot.once('spawn', () => {
-    console.log('Bot joined')
+  console.log('\nStarting safe test...\n')
 
-    // chat random sau khi vào
-    setInterval(() => {
-      try {
-        bot.chat(rand(messages))
-      } catch {}
-    }, 20000)
+  function create(i) {
+    const bot = mineflayer.createBot({
+      host,
+      port,
+      username: randomName()
+    })
 
-    // đi lại nhẹ
-    setInterval(() => {
-      try {
-        const moves = ['forward', 'back', 'left', 'right']
-        const move = rand(moves)
+    bot.once('spawn', () => {
+      console.log('joined')
 
-        bot.setControlState(move, true)
+      // chat nhẹ (1 lần)
+      setTimeout(() => {
+        try { bot.chat('test') } catch {}
+      }, 5000)
 
-        setTimeout(() => {
-          bot.setControlState(move, false)
-        }, 1000)
-      } catch {}
-    }, 8000)
-  })
+      // move nhẹ (ít tốn CPU)
+      setInterval(() => {
+        try {
+          const moves = ['forward', 'back', 'left', 'right']
+          const m = rand(moves)
 
-  bot.on('end', () => {
-    setTimeout(() => createBot(i), 15000)
-  })
+          bot.setControlState(m, true)
+          setTimeout(() => bot.setControlState(m, false), 800)
+        } catch {}
+      }, 10000)
+    })
 
-  bot.on('error', () => {})
-  bot.on('kicked', () => {})
+    bot.on('end', () => {
+      setTimeout(() => create(i), 20000)
+    })
+
+    bot.on('error', () => {})
+    bot.on('kicked', () => {})
+  }
+
+  // JOIN SLOW (giảm ECONNRESET)
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => create(i), i * 3000)
+  }
 }
 
-for (let i = 0; i < BOT_COUNT; i++) {
-  setTimeout(() => createBot(i), i * JOIN_DELAY)
-}
+start()
