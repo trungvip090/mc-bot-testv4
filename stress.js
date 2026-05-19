@@ -1,81 +1,75 @@
 const mineflayer = require('mineflayer')
-const readline = require('readline')
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-})
+const HOST = 'nova.pikamc.vn'
+const PORT = 25010
 
-function ask(q) {
-  return new Promise(res => rl.question(q, ans => res(ans)))
-}
+const BOT_COUNT = 10
+const JOIN_DELAY = 3000
+
+const messages = [
+  'hello',
+  'hi',
+  'test',
+  'nice server',
+  'lag?',
+  'gg',
+  'wow'
+]
 
 function randomName() {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
   let name = ''
-  const len = 8 + Math.floor(Math.random() * 5)
+  const len = 6 + Math.floor(Math.random() * 5)
   for (let i = 0; i < len; i++) {
     name += chars[Math.floor(Math.random() * chars.length)]
   }
   return name
 }
 
-function randomPass() {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let p = ''
-  for (let i = 0; i < 10; i++) {
-    p += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return p
+function rand(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
 }
 
-async function start() {
-  const host = await ask('IP server: ')
-  const port = parseInt(await ask('Port: '))
-  const count = parseInt(await ask('Số player: '))
-  const delay = parseInt(await ask('Delay (ms): '))
+function createBot(i) {
+  const bot = mineflayer.createBot({
+    host: HOST,
+    port: PORT,
+    username: randomName()
+  })
 
-  console.log('\nStarting test...\n')
+  bot.once('spawn', () => {
+    console.log('Bot joined')
 
-  const passwords = new Map()
+    // chat random sau khi vào
+    setInterval(() => {
+      try {
+        bot.chat(rand(messages))
+      } catch {}
+    }, 20000)
 
-  function create(i) {
-    const username = randomName()
-    const password = randomPass()
+    // đi lại nhẹ
+    setInterval(() => {
+      try {
+        const moves = ['forward', 'back', 'left', 'right']
+        const move = rand(moves)
 
-    const bot = mineflayer.createBot({
-      host,
-      port,
-      username
-    })
+        bot.setControlState(move, true)
 
-    bot.once('spawn', () => {
-      console.log(username + ' joined')
+        setTimeout(() => {
+          bot.setControlState(move, false)
+        }, 1000)
+      } catch {}
+    }, 8000)
+  })
 
-      setTimeout(() => {
-        try { bot.chat(`/register ${password} ${password}`) } catch {}
-      }, 4000)
+  bot.on('end', () => {
+    setTimeout(() => createBot(i), 15000)
+  })
 
-      setTimeout(() => {
-        try { bot.chat(`/login ${password}`) } catch {}
-      }, 8000)
-
-      setTimeout(() => {
-        try { bot.chat('test') } catch {}
-      }, 12000)
-    })
-
-    bot.on('end', () => {
-      setTimeout(() => create(i), 20000)
-    })
-
-    bot.on('error', () => {})
-    bot.on('kicked', () => {})
-  }
-
-  for (let i = 0; i < count; i++) {
-    setTimeout(() => create(i), i * delay)
-  }
+  bot.on('error', () => {})
+  bot.on('kicked', () => {})
 }
 
-start()
+for (let i = 0; i < BOT_COUNT; i++) {
+  setTimeout(() => createBot(i), i * JOIN_DELAY)
+}
